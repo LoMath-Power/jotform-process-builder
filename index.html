@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jotform Process Builder Widget</title>
+    <!-- Jotform SDK -->
+    <script src="https://js.jotform.com/JotformCustomWidget.js"></script>
+    <style>
+        :root {
+            --primary-color: #0a1551; /* Jotform Blue */
+            --accent-color: #3498db;
+            --danger-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --border-color: #d1d5db;
+            --drag-bg: #e0f2fe;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background-color: var(--bg-color);
+            color: #333;
+            user-select: none; /* Prevent text selection during drag */
+        }
+
+        .widget-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .widget-container {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+
+        .column {
+            flex: 1;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            min-height: 450px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h3 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .badge {
+            background: var(--bg-color);
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .helper-text {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-bottom: 10px;
+            font-weight: normal;
+        }
+
+        /* Master List Styles */
+        .master-list-items {
+            overflow-y: auto;
+            max-height: 500px;
+        }
+
+        .step-pill {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+
+        .step-pill:hover {
+            border-color: var(--accent-color);
+            background-color: #f0f7ff;
+            transform: translateX(3px);
+            color: var(--accent-color);
+        }
+
+        /* Builder Area Styles */
+        .selected-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 100px;
+        }
+
+        .empty-state {
+            color: #9ca3af;
+            text-align: center;
+            margin-top: 50px;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        .selected-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-left: 5px solid var(--accent-color);
+            border-radius: 8px;
+            padding: 12px;
+            position: relative;
+            cursor: grab;
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        .selected-card:active {
+            cursor: grabbing;
+        }
+
+        .selected-card.dragging {
+            opacity: 0.5;
+            background-color: var(--drag-bg);
+            border-style: dashed;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            pointer-events: none; /* Allow drag to start anywhere */
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .drag-handle {
+            color: #9ca3af;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            color: var(--danger-color);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            pointer-events: auto; /* Re-enable for the button */
+        }
+
+        .remove-btn:hover {
+            background: #fee2e2;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            pointer-events: auto; /* Re-enable for input */
+        }
+
+        .input-group label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .input-group input {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            user-select: text; /* Allow text selection in inputs */
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="widget-container">
+        <!-- Step Library -->
+        <div class="column">
+            <h3>
+                Available Steps 
+                <span class="badge" id="master-count">0</span>
+            </h3>
+            <div class="helper-text">Click a step to add it to your process</div>
+            <div class="master-list-items" id="master-list"></div>
+        </div>
+
+        <!-- Selected Process -->
+        <div class="column">
+            <h3>
+                Process Sequence 
+                <span class="badge" id="selected-count">0</span>
+            </h3>
+            <div class="helper-text">Drag items to change their order</div>
+            <div class="selected-container" id="selected-container">
+                <div class="empty-state">Select steps from the left to begin building your process.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const stepDefinitions = [
+            "Project Kickoff", "Requirement Gathering", "Feasibility Study", 
+            "Design & Prototyping", "Technical Specification", "Procurement",
+            "Initial Setup", "Development/Construction", "Quality Assurance", 
+            "UAT (User Testing)", "Compliance Check", "Internal Review", 
+            "Stakeholder Presentation", "Final Deployment", "Post-Launch Support"
+        ];
+
+        let selectedSteps = [];
+
+        // UI References
+        const masterList = document.getElementById('master-list');
+        const selectedContainer = document.getElementById('selected-container');
+        const masterCount = document.getElementById('master-count');
+        const selectedCount = document.getElementById('selected-count');
+
+        function init() {
+            masterCount.innerText = stepDefinitions.length;
+            
+            stepDefinitions.forEach(step => {
+                const btn = document.createElement('button');
+                btn.className = 'step-pill';
+                btn.innerHTML = `<strong>+</strong> ${step}`;
+                btn.onclick = () => addStep(step);
+                masterList.appendChild(btn);
+            });
+
+            // Set up Drag and Drop Listeners
+            selectedContainer.addEventListener('dragover', handleDragOver);
+            selectedContainer.addEventListener('drop', handleDrop);
+        }
+
+        function addStep(name) {
+            const newStep = {
+                id: 'step-' + Date.now() + Math.random().toString(36).substr(2, 5),
+                name: name,
+                responsible: ""
+            };
+            selectedSteps.push(newStep);
+            render();
+        }
+
+        function removeStep(id) {
+            selectedSteps = selectedSteps.filter(s => s.id !== id);
+            render();
+        }
+
+        function updateResponsible(id, value) {
+            const step = selectedSteps.find(s => s.id === id);
+            if (step) {
+                step.responsible = value;
+                syncWithJotform();
+            }
+        }
+
+        // --- Drag and Drop Logic ---
+        let draggedItemId = null;
+
+        function handleDragStart(e) {
+            draggedItemId = e.target.dataset.id;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            // Firefox needs this set to enable dragging
+            e.dataTransfer.setData('text/plain', draggedItemId);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedItemId = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const draggingElement = document.querySelector('.dragging');
+            if (!draggingElement) return;
+
+            const afterElement = getDragAfterElement(selectedContainer, e.clientY);
+            if (afterElement == null) {
+                selectedContainer.appendChild(draggingElement);
+            } else {
+                selectedContainer.insertBefore(draggingElement, afterElement);
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            // Re-sync the array based on the new DOM order
+            const newOrderIds = [...selectedContainer.querySelectorAll('.selected-card')]
+                .map(el => el.dataset.id);
+            
+            const reorderedSteps = newOrderIds.map(id => 
+                selectedSteps.find(step => step.id === id)
+            );
+            
+            selectedSteps = reorderedSteps;
+            render(); // Redraw to update the sequence numbers (1, 2, 3...)
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.selected-card:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        // --- End Drag and Drop Logic ---
+
+        function render() {
+            selectedCount.innerText = selectedSteps.length;
+
+            if (selectedSteps.length === 0) {
+                selectedContainer.innerHTML = '<div class="empty-state">Select steps from the left to begin building your process.</div>';
+            } else {
+                selectedContainer.innerHTML = '';
+                selectedSteps.forEach((step, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'selected-card';
+                    card.draggable = true;
+                    card.dataset.id = step.id;
+                    
+                    // Event Listeners for Drag
+                    card.ondragstart = handleDragStart;
+                    card.ondragend = handleDragEnd;
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span class="card-title">
+                                <span class="drag-handle">⋮⋮</span>
+                                ${index + 1}. ${step.name}
+                            </span>
+                            <button class="remove-btn" onclick="removeStep('${step.id}')">Remove</button>
+                        </div>
+                        <div class="input-group">
+                            <label>Responsible Person</label>
+                            <input type="text" 
+                                   placeholder="Enter name..." 
+                                   value="${step.responsible}" 
+                                   oninput="updateResponsible('${step.id}', this.value)"
+                                   onmousedown="event.stopPropagation()">
+                        </div>
+                    `;
+                    selectedContainer.appendChild(card);
+                });
+            }
+            syncWithJotform();
+        }
+
+        function syncWithJotform() {
+            const payload = {
+                totalSteps: selectedSteps.length,
+                steps: selectedSteps.map(s => ({ step: s.name, owner: s.responsible }))
+            };
+            
+            // Safe check for global JOTFORM object
+            if (typeof JOTFORM !== 'undefined') {
+                JOTFORM.sendData({ value: JSON.stringify(payload) });
+            }
+        }
+
+        // Initialize local UI immediately
+        init();
+
+        // Safe Jotform Lifecycle subscription
+        if (typeof JOTFORM !== 'undefined') {
+            JOTFORM.subscribe("ready", function() {
+                setInterval(() => {
+                    if (typeof JOTFORM !== 'undefined') {
+                        JOTFORM.requestFrameResize({ 
+                            height: document.body.offsetHeight + 40
+                        });
+                    }
+                }, 500);
+            });
+        }
+    </script>
+</body>
+</html>
