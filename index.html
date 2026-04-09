@@ -1,125 +1,163 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Workflow Builder Widget</title>
-    <script src="//js.jotform.com/JotFormCustomWidget.min.js"></script>
-    <style>
-        body { font-family: sans-serif; padding: 10px; margin: 0; background: #f9f9f9; }
-        .container { display: flex; gap: 20px; }
-        .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; min-height: 200px; }
-        h4 { margin-top: 0; color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        
-        .block-list { list-style: none; padding: 0; margin: 0; }
-        .block-item { 
-            background: #e3e3e3; padding: 8px; margin-bottom: 5px; 
-            cursor: pointer; border-radius: 3px; font-size: 14px;
-            transition: background 0.2s; border: 1px solid #d0d0d0;
-        }
-        .block-item:hover { background: #d0d0d0; }
-        
-        .workflow-list { list-style: decimal inside; padding: 0; }
-        .workflow-item { 
-            background: #007eff; color: white; padding: 8px; 
-            margin-bottom: 5px; border-radius: 3px; font-size: 14px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .remove-btn { cursor: pointer; font-weight: bold; margin-left: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 50%; }
-        .empty-hint { color: #999; font-style: italic; font-size: 13px; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Workflow Builder</title>
+  <script src="//js.jotform.com/JotFormCustomWidget.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 10px;
+    }
+
+    h3 {
+      margin-top: 0;
+    }
+
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+
+    .column {
+      width: 50%;
+    }
+
+    .box {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 200px;
+      border-radius: 6px;
+    }
+
+    .item {
+      padding: 8px;
+      margin: 5px 0;
+      background: #f4f4f4;
+      cursor: grab;
+      border-radius: 4px;
+    }
+
+    .item:hover {
+      background: #e0e0e0;
+    }
+
+    .selected {
+      background: #d0ebff;
+    }
+  </style>
 </head>
+
 <body>
+  <h3>Custom Workflow Builder</h3>
 
-<div class="container">
+  <div class="container">
     <div class="column">
-        <h4>Available Steps</h4>
-        <div id="palette" class="block-list"></div>
+      <h4>Available Steps</h4>
+      <div id="available" class="box"></div>
     </div>
 
     <div class="column">
-        <h4>Your Workflow</h4>
-        <div id="workflow" class="workflow-list"></div>
+      <h4>Your Workflow</h4>
+      <div id="workflow" class="box"></div>
     </div>
-</div>
+  </div>
 
-<script type="text/javascript">
-    const presetSteps = [
-        "Project Planning", "Content Briefing", "Initial Drafting", 
-        "Internal Review", "SME Review", "Translation Prep", 
-        "Language Services (LS)", "Translation", "Localization Review", 
-        "Linguistic Sign-off", "QA", "Final Approval", "Publishing"
+  <script>
+    const steps = [
+      "Project Planning",
+      "Content Briefing",
+      "Initial Drafting",
+      "Internal Review",
+      "SME Review",
+      "Translation Prep",
+      "Language Services (LS)",
+      "Translation",
+      "Localization Review",
+      "Linguistic Sign-off",
+      "QA",
+      "Final Approval",
+      "Publishing"
     ];
 
-    let currentWorkflow = [];
+    const available = document.getElementById("available");
+    const workflow = document.getElementById("workflow");
 
-    // Initialize the Palette
-    const paletteDiv = document.getElementById('palette');
-    presetSteps.forEach(step => {
-        const div = document.createElement('div');
-        div.className = 'block-item';
-        div.innerText = step + " +";
-        div.onclick = () => addToWorkflow(step);
-        paletteDiv.appendChild(div);
+    // Populate available steps
+    steps.forEach(step => {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerText = step;
+
+      el.onclick = () => addToWorkflow(step);
+
+      available.appendChild(el);
     });
-
-    function renderWorkflow() {
-        const workflowDiv = document.getElementById('workflow');
-        workflowDiv.innerHTML = '';
-        
-        if (currentWorkflow.length === 0) {
-            workflowDiv.innerHTML = '<span class="empty-hint">Click steps on the left to build your workflow...</span>';
-        }
-
-        currentWorkflow.forEach((step, index) => {
-            const item = document.createElement('div');
-            item.className = 'workflow-item';
-            item.innerHTML = `<span>${index + 1}. ${step}</span>`;
-            
-            const removeBtn = document.createElement('span');
-            removeBtn.className = 'remove-btn';
-            removeBtn.innerText = '×';
-            removeBtn.onclick = () => removeFromWorkflow(index);
-            
-            item.appendChild(removeBtn);
-            workflowDiv.appendChild(item);
-        });
-
-        // Send data to Jotform whenever the list changes
-        JFCustomWidget.sendData({ value: JSON.stringify(currentWorkflow) });
-    }
 
     function addToWorkflow(step) {
-        currentWorkflow.push(step);
-        renderWorkflow();
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerText = step;
+
+      // Remove on click
+      el.onclick = () => el.remove();
+
+      // Enable drag
+      el.draggable = true;
+
+      el.addEventListener("dragstart", dragStart);
+      el.addEventListener("dragover", dragOver);
+      el.addEventListener("drop", drop);
+
+      workflow.appendChild(el);
+
+      resizeWidget();
     }
 
-    function removeFromWorkflow(index) {
-        currentWorkflow.splice(index, 1);
-        renderWorkflow();
+    // Drag logic
+    let dragged;
+
+    function dragStart(e) {
+      dragged = e.target;
     }
 
-    // Jotform Lifecycle
-    JFCustomWidget.subscribe("ready", function(data){
-        // If there's existing data (e.g. user is editing a previous submission)
-        if (data && data.value) {
-            try {
-                currentWorkflow = JSON.parse(data.value);
-            } catch (e) {
-                currentWorkflow = [];
-            }
-        }
-        renderWorkflow();
+    function dragOver(e) {
+      e.preventDefault();
+    }
 
-        // Subscribe to submit
-        JFCustomWidget.subscribe("submit", function(){
-            const msg = {
-                valid: currentWorkflow.length > 0, // Field is valid if at least 1 step is chosen
-                value: JSON.stringify(currentWorkflow)
-            };
-            JFCustomWidget.sendSubmit(msg);
-        });
+    function drop(e) {
+      e.preventDefault();
+      if (e.target.classList.contains("item")) {
+        workflow.insertBefore(dragged, e.target);
+      }
+    }
+
+    function getWorkflowData() {
+      const items = workflow.querySelectorAll(".item");
+      const result = [];
+      items.forEach(el => result.push(el.innerText));
+      return result;
+    }
+
+    function resizeWidget() {
+      JFCustomWidget.requestFrameResize({
+        height: document.body.scrollHeight
+      });
+    }
+
+    // Jotform integration
+    JFCustomWidget.subscribe("ready", function () {
+      resizeWidget();
+
+      JFCustomWidget.subscribe("submit", function () {
+        const data = {
+          valid: true,
+          value: JSON.stringify(getWorkflowData())
+        };
+        JFCustomWidget.sendSubmit(data);
+      });
     });
-</script>
-
+  </script>
 </body>
 </html>
