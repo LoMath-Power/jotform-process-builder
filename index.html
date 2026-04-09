@@ -72,6 +72,7 @@
             color: #6b7280;
             margin-bottom: 10px;
             font-weight: normal;
+            line-height: 1.2;
         }
 
         /* Master List Styles */
@@ -219,11 +220,8 @@
     <div class="widget-container">
         <!-- Step Library -->
         <div class="column">
-            <h3>
-                Available 
-                <span class="badge" id="master-count">0</span>
-            </h3>
-            <div class="helper-text">Click to add</div>
+            <h3>Possible Steps</h3>
+            <div class="helper-text">Click to add. You can select the same step multiple times.</div>
             <div class="master-list-items" id="master-list"></div>
         </div>
 
@@ -242,11 +240,21 @@
 
     <script>
         const stepDefinitions = [
-            "Project Kickoff", "Requirement Gathering", "Feasibility Study", 
-            "Design & Prototyping", "Technical Specification", "Procurement",
-            "Initial Setup", "Development/Construction", "Quality Assurance", 
-            "UAT (User Testing)", "Compliance Check", "Internal Review", 
-            "Stakeholder Presentation", "Final Deployment", "Post-Launch Support"
+            "Project Planning",
+            "Content Briefing",
+            "Initial Drafting",
+            "Internal Review Cycle",
+            "SME/Technical Review",
+            "Final Copy Refinement",
+            "Translation Prep",
+            "Language Services (LS)",
+            "Translation Phase",
+            "Localization Review",
+            "Linguistic Sign-off",
+            "Quality Assurance (QA)",
+            "Design/DTP Phase",
+            "Final Approval",
+            "Publishing/Distribution"
         ];
 
         let selectedSteps = [];
@@ -254,12 +262,9 @@
         // UI References
         const masterList = document.getElementById('master-list');
         const selectedContainer = document.getElementById('selected-container');
-        const masterCount = document.getElementById('master-count');
         const selectedCount = document.getElementById('selected-count');
 
         function init() {
-            masterCount.innerText = stepDefinitions.length;
-            
             stepDefinitions.forEach(step => {
                 const btn = document.createElement('button');
                 btn.className = 'step-pill';
