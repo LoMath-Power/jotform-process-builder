@@ -3,30 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jotform Widget - Persistence Fix</title>
+    <title>Jotform Widget - Process Builder</title>
+    <!-- Official Jotform SDK -->
     <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 10px; background: #f4f4f4; }
-        .container { display: flex; gap: 10px; }
-        .col { flex: 1; background: white; padding: 15px; border: 1px solid #ccc; border-radius: 5px; min-height: 350px; }
-        h3 { margin-top: 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        body { font-family: sans-serif; margin: 0; padding: 10px; background: #f4f4f4; line-height: 1.4; }
+        .container { display: flex; gap: 15px; max-width: 1000px; margin: 0 auto; }
+        .col { flex: 1; background: white; padding: 15px; border: 1px solid #ccc; border-radius: 8px; min-height: 400px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; font-size: 16px; border-bottom: 2px solid #3498db; padding-bottom: 8px; color: #2c3e50; }
         
+        /* Library Buttons */
         .add-btn { 
-            display: block; width: 100%; text-align: left; padding: 8px; margin-bottom: 5px; 
-            background: #fff; border: 1px solid #ddd; cursor: pointer; border-radius: 3px; font-size: 13px;
+            display: block; width: 100%; text-align: left; padding: 10px; margin-bottom: 8px; 
+            background: #fff; border: 1px solid #ddd; cursor: pointer; border-radius: 5px; 
+            font-size: 13px; transition: background 0.2s;
         }
-        .add-btn:hover { background: #f0f0f0; }
+        .add-btn:hover { background: #f8f9fa; border-color: #3498db; }
 
+        /* Step rows */
         .step-row { 
-            background: #fff; border: 1px solid #3498db; border-left: 4px solid #3498db; 
-            padding: 10px; margin-bottom: 10px; border-radius: 3px; position: relative;
+            background: #fff; border: 1px solid #e1e4e8; border-left: 5px solid #3498db; 
+            padding: 12px; margin-bottom: 12px; border-radius: 5px; position: relative;
         }
-        .step-name { font-weight: bold; font-size: 13px; display: block; margin-bottom: 5px; }
-        .step-label { display: block; font-size: 11px; color: #666; margin-bottom: 3px; }
-        .step-input { width: 100%; box-sizing: border-box; padding: 5px; border: 1px solid #ccc; font-size: 12px; }
-        .remove-btn { position: absolute; top: 5px; right: 5px; color: red; border: none; background: none; cursor: pointer; font-size: 11px; }
+        .step-name { font-weight: bold; font-size: 14px; display: block; margin-bottom: 8px; color: #2c3e50; }
+        .step-label { display: block; font-size: 11px; color: #7f8c8d; margin-bottom: 4px; font-weight: 600; }
+        .step-input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 13px; }
+        .step-input:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,0.2); }
         
-        .status-dot { font-size: 10px; color: #888; margin-top: 10px; display: block; }
+        .remove-btn { 
+            position: absolute; top: 8px; right: 8px; color: #e74c3c; border: 1px solid #e74c3c; 
+            background: none; cursor: pointer; font-size: 10px; padding: 2px 6px; border-radius: 3px;
+        }
+        .remove-btn:hover { background: #e74c3c; color: white; }
+        
+        .status-dot { font-size: 10px; color: #95a5a6; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; display: block; }
+        .debug-log { font-size: 9px; color: #bdc3c7; margin-top: 5px; font-family: monospace; }
     </style>
 </head>
 <body>
@@ -38,8 +49,11 @@
     </div>
     <div class="col">
         <h3>Your Process</h3>
-        <div id="selected-list"></div>
-        <span class="status-dot" id="status">Syncing...</span>
+        <form id="widget-form" onsubmit="return false;">
+            <div id="selected-list"></div>
+        </form>
+        <span class="status-dot" id="status">Initializing SDK...</span>
+        <div class="debug-log" id="debug"></div>
     </div>
 </div>
 
@@ -51,7 +65,14 @@
     ];
 
     let selectedSteps = [];
-    const STORAGE_KEY = "jotform_process_backup";
+    let widgetSettings = null;
+    const STORAGE_KEY = "jotform_v3_backup";
+
+    function log(msg) {
+        const d = document.getElementById('debug');
+        d.innerText = msg;
+        console.log("Widget Log:", msg);
+    }
 
     function addStep(name) {
         selectedSteps.push({ name: name, owner: "" });
@@ -70,17 +91,17 @@
 
     function render() {
         const list = document.getElementById('selected-list');
-        list.innerHTML = selectedSteps.length === 0 ? '<p style="color:gray; font-size:12px;">No steps added.</p>' : '';
+        list.innerHTML = selectedSteps.length === 0 ? '<p style="color:#95a5a6; font-size:12px; text-align:center; padding-top:20px;">No steps added yet. Click steps on the left to begin.</p>' : '';
         
         selectedSteps.forEach((s, i) => {
-            const inputId = `owner-input-${i}`;
+            const inputId = `owner_${i}_${Date.now()}`; // Unique ID to avoid label conflicts
             const div = document.createElement('div');
             div.className = 'step-row';
             div.innerHTML = `
-                <button class="remove-btn" onclick="removeStep(${i})">Remove</button>
+                <button type="button" class="remove-btn" onclick="removeStep(${i})">✕ Remove</button>
                 <span class="step-name">${i + 1}. ${s.name}</span>
-                <label class="step-label" for="${inputId}">Responsible person:</label>
-                <input id="${inputId}" name="${inputId}" class="step-input" type="text" placeholder="Enter name" value="${s.owner}" oninput="updateOwner(${i}, this.value)">
+                <label class="step-label" for="${inputId}">Assign to:</label>
+                <input id="${inputId}" name="${inputId}" class="step-input" type="text" placeholder="Responsible name" value="${s.owner}" oninput="updateOwner(${i}, this.value)">
             `;
             list.appendChild(div);
         });
@@ -88,71 +109,72 @@
     }
 
     function getPayload() {
-        const dataString = JSON.stringify(selectedSteps);
+        const val = JSON.stringify(selectedSteps);
         return {
             valid: selectedSteps.length > 0,
-            value: dataString
+            value: val
         };
     }
 
     function sync() {
         const payload = getPayload();
-        
-        // Backup for local persistence
+        // Local persistence fallback
         localStorage.setItem(STORAGE_KEY, payload.value);
 
         if (typeof JFCustomWidget !== 'undefined') {
-            // Updated to pass both valid and value as per the photo example
             JFCustomWidget.sendData(payload);
             document.getElementById('status').innerText = "Last sync: " + new Date().toLocaleTimeString();
+            log("Data pushed to Jotform");
         }
     }
 
-    // Initialize Master List
-    const mList = document.getElementById('master-list');
-    options.forEach(opt => {
-        const b = document.createElement('button');
-        b.className = 'add-btn';
-        b.innerText = "+ " + opt;
-        b.onclick = () => addStep(opt);
-        mList.appendChild(b);
-    });
-
+    // Wait for SDK before building UI
     if (typeof JFCustomWidget !== 'undefined') {
-        // Subscribe to Ready
         JFCustomWidget.subscribe("ready", function(msg) {
-            console.log("ready message arrived from JotForm", msg);
+            log("Ready received");
+            document.getElementById('status').innerText = "Connected to Jotform";
             
-            // Priority 1: Restore from JotForm's provided msg.value
+            // Build Library
+            const mList = document.getElementById('master-list');
+            options.forEach(opt => {
+                const b = document.createElement('button');
+                b.type = "button";
+                b.className = 'add-btn';
+                b.innerText = "+ " + opt;
+                b.onclick = () => addStep(opt);
+                mList.appendChild(b);
+            });
+
+            // Restore Data
             if (msg && msg.value && msg.value !== "" && msg.value !== "[]") {
                 try {
                     selectedSteps = JSON.parse(msg.value);
-                    render();
-                } catch (e) { console.error("Error parsing Jotform value", e); }
-            } 
-            // Priority 2: Fallback to LocalStorage (important for page navigation)
-            else {
+                    log("Restored from msg.value");
+                } catch (e) { log("Error parsing msg.value"); }
+            } else {
                 const backup = localStorage.getItem(STORAGE_KEY);
                 if (backup) {
                     try {
                         selectedSteps = JSON.parse(backup);
-                        render();
-                    } catch (e) { console.error("Error parsing backup", e); }
+                        log("Restored from LocalStorage");
+                    } catch (e) { log("Error parsing storage"); }
                 }
             }
+            render();
 
-            // Continuous resize
+            // Handle height
             setInterval(() => {
                 JFCustomWidget.requestFrameResize({ height: document.body.offsetHeight + 40 });
-            }, 800);
+            }, 1000);
         });
 
-        // Subscribe to Submit - Using sendSubmit as per the Take Photo example
         JFCustomWidget.subscribe("submit", function() {
+            log("Submit intercepted");
             const payload = getPayload();
-            console.log("Sending final submit payload:", payload);
             JFCustomWidget.sendSubmit(payload);
         });
+    } else {
+        document.getElementById('status').innerText = "SDK Load Error";
     }
 </script>
 
