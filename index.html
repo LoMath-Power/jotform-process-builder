@@ -1,181 +1,124 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jotform Widget - Process Builder</title>
-    <!-- Official Jotform SDK -->
-    <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
+    <title>Workflow Builder Widget</title>
+    <script src="//js.jotform.com/JotFormCustomWidget.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 10px; background: #f4f4f4; line-height: 1.4; }
-        .container { display: flex; gap: 15px; max-width: 1000px; margin: 0 auto; }
-        .col { flex: 1; background: white; padding: 15px; border: 1px solid #ccc; border-radius: 8px; min-height: 400px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        h3 { margin-top: 0; font-size: 16px; border-bottom: 2px solid #3498db; padding-bottom: 8px; color: #2c3e50; }
+        body { font-family: sans-serif; padding: 10px; margin: 0; background: #f9f9f9; }
+        .container { display: flex; gap: 20px; }
+        .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; min-height: 200px; }
+        h4 { margin-top: 0; color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         
-        /* Library Buttons */
-        .add-btn { 
-            display: block; width: 100%; text-align: left; padding: 10px; margin-bottom: 8px; 
-            background: #fff; border: 1px solid #ddd; cursor: pointer; border-radius: 5px; 
-            font-size: 13px; transition: background 0.2s;
+        .block-list { list-style: none; padding: 0; margin: 0; }
+        .block-item { 
+            background: #e3e3e3; padding: 8px; margin-bottom: 5px; 
+            cursor: pointer; border-radius: 3px; font-size: 14px;
+            transition: background 0.2s; border: 1px solid #d0d0d0;
         }
-        .add-btn:hover { background: #f8f9fa; border-color: #3498db; }
-
-        /* Step rows */
-        .step-row { 
-            background: #fff; border: 1px solid #e1e4e8; border-left: 5px solid #3498db; 
-            padding: 12px; margin-bottom: 12px; border-radius: 5px; position: relative;
-        }
-        .step-name { font-weight: bold; font-size: 14px; display: block; margin-bottom: 8px; color: #2c3e50; }
-        .step-label { display: block; font-size: 11px; color: #7f8c8d; margin-bottom: 4px; font-weight: 600; }
-        .step-input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 13px; }
-        .step-input:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,0.2); }
+        .block-item:hover { background: #d0d0d0; }
         
-        .remove-btn { 
-            position: absolute; top: 8px; right: 8px; color: #e74c3c; border: 1px solid #e74c3c; 
-            background: none; cursor: pointer; font-size: 10px; padding: 2px 6px; border-radius: 3px;
+        .workflow-list { list-style: decimal inside; padding: 0; }
+        .workflow-item { 
+            background: #007eff; color: white; padding: 8px; 
+            margin-bottom: 5px; border-radius: 3px; font-size: 14px;
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .remove-btn:hover { background: #e74c3c; color: white; }
-        
-        .status-dot { font-size: 10px; color: #95a5a6; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; display: block; }
-        .debug-log { font-size: 9px; color: #bdc3c7; margin-top: 5px; font-family: monospace; }
+        .remove-btn { cursor: pointer; font-weight: bold; margin-left: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 50%; }
+        .empty-hint { color: #999; font-style: italic; font-size: 13px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="col">
-        <h3>Possible Steps</h3>
-        <div id="master-list"></div>
+    <div class="column">
+        <h4>Available Steps</h4>
+        <div id="palette" class="block-list"></div>
     </div>
-    <div class="col">
-        <h3>Your Process</h3>
-        <form id="widget-form" onsubmit="return false;">
-            <div id="selected-list"></div>
-        </form>
-        <span class="status-dot" id="status">Initializing SDK...</span>
-        <div class="debug-log" id="debug"></div>
+
+    <div class="column">
+        <h4>Your Workflow</h4>
+        <div id="workflow" class="workflow-list"></div>
     </div>
 </div>
 
-<script>
-    const options = [
-        "Project Planning", "Content Briefing", "Initial Drafting", "Internal Review", 
-        "SME Review", "Translation Prep", "Language Services (LS)", "Translation", 
-        "Localization Review", "Linguistic Sign-off", "QA", "Final Approval", "Publishing"
+<script type="text/javascript">
+    const presetSteps = [
+        "Project Planning", "Content Briefing", "Initial Drafting", 
+        "Internal Review", "SME Review", "Translation Prep", 
+        "Language Services (LS)", "Translation", "Localization Review", 
+        "Linguistic Sign-off", "QA", "Final Approval", "Publishing"
     ];
 
-    let selectedSteps = [];
-    let widgetSettings = null;
-    const STORAGE_KEY = "jotform_v3_backup";
+    let currentWorkflow = [];
 
-    function log(msg) {
-        const d = document.getElementById('debug');
-        d.innerText = msg;
-        console.log("Widget Log:", msg);
-    }
+    // Initialize the Palette
+    const paletteDiv = document.getElementById('palette');
+    presetSteps.forEach(step => {
+        const div = document.createElement('div');
+        div.className = 'block-item';
+        div.innerText = step + " +";
+        div.onclick = () => addToWorkflow(step);
+        paletteDiv.appendChild(div);
+    });
 
-    function addStep(name) {
-        selectedSteps.push({ name: name, owner: "" });
-        render();
-    }
-
-    function removeStep(index) {
-        selectedSteps.splice(index, 1);
-        render();
-    }
-
-    function updateOwner(index, val) {
-        selectedSteps[index].owner = val;
-        sync(); 
-    }
-
-    function render() {
-        const list = document.getElementById('selected-list');
-        list.innerHTML = selectedSteps.length === 0 ? '<p style="color:#95a5a6; font-size:12px; text-align:center; padding-top:20px;">No steps added yet. Click steps on the left to begin.</p>' : '';
+    function renderWorkflow() {
+        const workflowDiv = document.getElementById('workflow');
+        workflowDiv.innerHTML = '';
         
-        selectedSteps.forEach((s, i) => {
-            const inputId = `owner_${i}_${Date.now()}`; // Unique ID to avoid label conflicts
-            const div = document.createElement('div');
-            div.className = 'step-row';
-            div.innerHTML = `
-                <button type="button" class="remove-btn" onclick="removeStep(${i})">✕ Remove</button>
-                <span class="step-name">${i + 1}. ${s.name}</span>
-                <label class="step-label" for="${inputId}">Assign to:</label>
-                <input id="${inputId}" name="${inputId}" class="step-input" type="text" placeholder="Responsible name" value="${s.owner}" oninput="updateOwner(${i}, this.value)">
-            `;
-            list.appendChild(div);
-        });
-        sync();
-    }
-
-    function getPayload() {
-        const val = JSON.stringify(selectedSteps);
-        return {
-            valid: selectedSteps.length > 0,
-            value: val
-        };
-    }
-
-    function sync() {
-        const payload = getPayload();
-        // Local persistence fallback
-        localStorage.setItem(STORAGE_KEY, payload.value);
-
-        if (typeof JFCustomWidget !== 'undefined') {
-            JFCustomWidget.sendData(payload);
-            document.getElementById('status').innerText = "Last sync: " + new Date().toLocaleTimeString();
-            log("Data pushed to Jotform");
+        if (currentWorkflow.length === 0) {
+            workflowDiv.innerHTML = '<span class="empty-hint">Click steps on the left to build your workflow...</span>';
         }
-    }
 
-    // Wait for SDK before building UI
-    if (typeof JFCustomWidget !== 'undefined') {
-        JFCustomWidget.subscribe("ready", function(msg) {
-            log("Ready received");
-            document.getElementById('status').innerText = "Connected to Jotform";
+        currentWorkflow.forEach((step, index) => {
+            const item = document.createElement('div');
+            item.className = 'workflow-item';
+            item.innerHTML = `<span>${index + 1}. ${step}</span>`;
             
-            // Build Library
-            const mList = document.getElementById('master-list');
-            options.forEach(opt => {
-                const b = document.createElement('button');
-                b.type = "button";
-                b.className = 'add-btn';
-                b.innerText = "+ " + opt;
-                b.onclick = () => addStep(opt);
-                mList.appendChild(b);
-            });
-
-            // Restore Data
-            if (msg && msg.value && msg.value !== "" && msg.value !== "[]") {
-                try {
-                    selectedSteps = JSON.parse(msg.value);
-                    log("Restored from msg.value");
-                } catch (e) { log("Error parsing msg.value"); }
-            } else {
-                const backup = localStorage.getItem(STORAGE_KEY);
-                if (backup) {
-                    try {
-                        selectedSteps = JSON.parse(backup);
-                        log("Restored from LocalStorage");
-                    } catch (e) { log("Error parsing storage"); }
-                }
-            }
-            render();
-
-            // Handle height
-            setInterval(() => {
-                JFCustomWidget.requestFrameResize({ height: document.body.offsetHeight + 40 });
-            }, 1000);
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerText = '×';
+            removeBtn.onclick = () => removeFromWorkflow(index);
+            
+            item.appendChild(removeBtn);
+            workflowDiv.appendChild(item);
         });
 
-        JFCustomWidget.subscribe("submit", function() {
-            log("Submit intercepted");
-            const payload = getPayload();
-            JFCustomWidget.sendSubmit(payload);
-        });
-    } else {
-        document.getElementById('status').innerText = "SDK Load Error";
+        // Send data to Jotform whenever the list changes
+        JFCustomWidget.sendData({ value: JSON.stringify(currentWorkflow) });
     }
+
+    function addToWorkflow(step) {
+        currentWorkflow.push(step);
+        renderWorkflow();
+    }
+
+    function removeFromWorkflow(index) {
+        currentWorkflow.splice(index, 1);
+        renderWorkflow();
+    }
+
+    // Jotform Lifecycle
+    JFCustomWidget.subscribe("ready", function(data){
+        // If there's existing data (e.g. user is editing a previous submission)
+        if (data && data.value) {
+            try {
+                currentWorkflow = JSON.parse(data.value);
+            } catch (e) {
+                currentWorkflow = [];
+            }
+        }
+        renderWorkflow();
+
+        // Subscribe to submit
+        JFCustomWidget.subscribe("submit", function(){
+            const msg = {
+                valid: currentWorkflow.length > 0, // Field is valid if at least 1 step is chosen
+                value: JSON.stringify(currentWorkflow)
+            };
+            JFCustomWidget.sendSubmit(msg);
+        });
+    });
 </script>
 
 </body>
