@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jotform Widget - Minimalist</title>
-    <!-- Official Jotform SDK -->
+    <title>Jotform Widget - Persistence Fix</title>
     <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 10px; background: #f4f4f4; }
         .container { display: flex; gap: 10px; }
-        .col { flex: 1; background: white; padding: 15px; border: 1px solid #ccc; border-radius: 5px; min-height: 300px; }
-        h3 { margin-top: 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; display: flex; justify-content: space-between; }
+        .col { flex: 1; background: white; padding: 15px; border: 1px solid #ccc; border-radius: 5px; min-height: 350px; }
+        h3 { margin-top: 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         
         .add-btn { 
             display: block; width: 100%; text-align: left; padding: 8px; margin-bottom: 5px; 
@@ -25,6 +24,8 @@
         .step-name { font-weight: bold; font-size: 13px; display: block; margin-bottom: 5px; }
         .step-input { width: 100%; box-sizing: border-box; padding: 5px; border: 1px solid #ccc; font-size: 12px; }
         .remove-btn { position: absolute; top: 5px; right: 5px; color: red; border: none; background: none; cursor: pointer; font-size: 11px; }
+        
+        .status-dot { font-size: 10px; color: #888; margin-top: 10px; display: block; }
     </style>
 </head>
 <body>
@@ -37,6 +38,7 @@
     <div class="col">
         <h3>Your Process</h3>
         <div id="selected-list"></div>
+        <span class="status-dot" id="status">Syncing...</span>
     </div>
 </div>
 
@@ -48,6 +50,7 @@
     ];
 
     let selectedSteps = [];
+    const STORAGE_KEY = "jotform_process_backup";
 
     function addStep(name) {
         selectedSteps.push({ name: name, owner: "" });
@@ -81,15 +84,28 @@
         sync();
     }
 
+    function getPayload() {
+        const dataString = JSON.stringify(selectedSteps);
+        return {
+            valid: selectedSteps.length > 0,
+            value: dataString
+        };
+    }
+
     function sync() {
+        const payload = getPayload();
+        
+        // Backup for local persistence
+        localStorage.setItem(STORAGE_KEY, payload.value);
+
         if (typeof JFCustomWidget !== 'undefined') {
-            const dataString = JSON.stringify(selectedSteps);
-            // sendData tells Jotform the current value of the field immediately
-            JFCustomWidget.sendData({ value: dataString });
+            // Updated to pass both valid and value as per the photo example
+            JFCustomWidget.sendData(payload);
+            document.getElementById('status').innerText = "Last sync: " + new Date().toLocaleTimeString();
         }
     }
 
-    // Build the master list buttons
+    // Initialize Master List
     const mList = document.getElementById('master-list');
     options.forEach(opt => {
         const b = document.createElement('button');
@@ -100,32 +116,39 @@
     });
 
     if (typeof JFCustomWidget !== 'undefined') {
-        JFCustomWidget.subscribe("ready", function(data) {
-            // Restore data if it exists (for edits or multi-page forms)
-            if (data && data.value) {
+        // Subscribe to Ready
+        JFCustomWidget.subscribe("ready", function(msg) {
+            console.log("ready message arrived from JotForm", msg);
+            
+            // Priority 1: Restore from JotForm's provided msg.value
+            if (msg && msg.value && msg.value !== "" && msg.value !== "[]") {
                 try {
-                    const parsed = JSON.parse(data.value);
-                    if (Array.isArray(parsed)) {
-                        selectedSteps = parsed;
+                    selectedSteps = JSON.parse(msg.value);
+                    render();
+                } catch (e) { console.error("Error parsing Jotform value", e); }
+            } 
+            // Priority 2: Fallback to LocalStorage (important for page navigation)
+            else {
+                const backup = localStorage.getItem(STORAGE_KEY);
+                if (backup) {
+                    try {
+                        selectedSteps = JSON.parse(backup);
                         render();
-                    }
-                } catch (e) { console.error("Parse error", e); }
+                    } catch (e) { console.error("Error parsing backup", e); }
+                }
             }
 
-            // Ensure the iframe height matches the content
+            // Continuous resize
             setInterval(() => {
                 JFCustomWidget.requestFrameResize({ height: document.body.offsetHeight + 40 });
-            }, 1000);
+            }, 800);
         });
 
+        // Subscribe to Submit - Using sendSubmit as per the Take Photo example
         JFCustomWidget.subscribe("submit", function() {
-            // Final confirmation of data on form submission
-            const dataString = JSON.stringify(selectedSteps);
-            const result = {
-                valid: true,
-                value: dataString
-            };
-            JFCustomWidget.sendSubmit(result);
+            const payload = getPayload();
+            console.log("Sending final submit payload:", payload);
+            JFCustomWidget.sendSubmit(payload);
         });
     }
 </script>
