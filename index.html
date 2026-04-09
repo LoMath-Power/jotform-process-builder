@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jotform Process Builder Widget</title>
-    <!-- Updated to the official minified SDK -->
+    <!-- Jotform Custom Widget API -->
     <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
     <style>
         :root {
@@ -330,28 +330,34 @@
         }
 
         function getFormattedData() {
-            return JSON.stringify({
+            const data = {
                 totalSteps: selectedSteps.length,
                 steps: selectedSteps.map(s => ({ step: s.name, owner: s.responsible }))
-            });
+            };
+            return JSON.stringify(data);
         }
 
         function syncWithJotform() {
             if (isReady && typeof JFCustomWidget !== 'undefined') {
-                JFCustomWidget.sendData({ value: getFormattedData() });
+                const value = getFormattedData();
+                // Send data using the required 'value' key
+                JFCustomWidget.sendData({ 
+                    value: value,
+                    valid: selectedSteps.length > 0 // Help Jotform realize the field is "filled"
+                });
+                console.log("Jotform: Data Synced", value);
             }
         }
 
-        // Initialize UI Elements
         initUI();
 
         // SDK Integration
         if (typeof JFCustomWidget !== 'undefined') {
-            // Subscribe to READY
             JFCustomWidget.subscribe("ready", function(data) {
                 isReady = true;
+                console.log("Jotform: Widget Ready", data);
                 
-                // If there's existing value (e.g. editing a submission), restore it
+                // Initialize widget with existing value if available (essential for multi-page/edit)
                 if (data && data.value) {
                     try {
                         const saved = JSON.parse(data.value);
@@ -368,26 +374,25 @@
                     }
                 }
 
-                // Initial frame resize
                 JFCustomWidget.requestFrameResize({ 
                     height: document.body.offsetHeight + 40
                 });
 
-                // Periodic resize to keep up with dynamic height changes
                 setInterval(() => {
                     JFCustomWidget.requestFrameResize({ 
                         height: document.body.offsetHeight + 40
                     });
-                }, 800);
+                }, 1000);
             });
 
-            // Subscribe to SUBMIT
+            // Capture the submit event to send final state
             JFCustomWidget.subscribe("submit", function() {
-                const results = {
-                    valid: true, // Mark as valid so required-field validation passes
+                console.log("Jotform: Submit event received");
+                const payload = {
+                    valid: selectedSteps.length > 0,
                     value: getFormattedData()
                 };
-                JFCustomWidget.sendSubmit(results);
+                JFCustomWidget.sendSubmit(payload);
             });
         }
     </script>
