@@ -3,398 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jotform Process Builder Widget</title>
-    <!-- Jotform Custom Widget API -->
+    <title>Jotform Widget - Minimalist</title>
+    <!-- Official Jotform SDK -->
     <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
     <style>
-        :root {
-            --primary-color: #0a1551;
-            --accent-color: #3498db;
-            --danger-color: #e74c3c;
-            --bg-color: #f4f7f6;
-            --border-color: #d1d5db;
-            --drag-bg: #e0f2fe;
+        body { font-family: sans-serif; margin: 0; padding: 10px; background: #f4f4f4; }
+        .container { display: flex; gap: 10px; }
+        .col { flex: 1; background: white; padding: 15px; border: 1px solid #ccc; border-radius: 5px; min-height: 300px; }
+        h3 { margin-top: 0; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px; display: flex; justify-content: space-between; }
+        
+        .add-btn { 
+            display: block; width: 100%; text-align: left; padding: 8px; margin-bottom: 5px; 
+            background: #fff; border: 1px solid #ddd; cursor: pointer; border-radius: 3px; font-size: 13px;
         }
+        .add-btn:hover { background: #f0f0f0; }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 10px;
-            background-color: var(--bg-color);
-            color: #333;
+        .step-row { 
+            background: #fff; border: 1px solid #3498db; border-left: 4px solid #3498db; 
+            padding: 10px; margin-bottom: 10px; border-radius: 3px; position: relative;
         }
-
-        .widget-container {
-            display: flex;
-            flex-direction: row;
-            gap: 12px;
-            align-items: flex-start;
-            width: 100%;
-        }
-
-        .column {
-            flex: 1;
-            min-width: 0;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            min-height: 450px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        h3 {
-            margin-top: 0;
-            font-size: 0.95rem;
-            color: var(--primary-color);
-            border-bottom: 2px solid var(--bg-color);
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .badge {
-            background: var(--bg-color);
-            color: var(--primary-color);
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-weight: bold;
-        }
-
-        .helper-text {
-            font-size: 0.7rem;
-            color: #6b7280;
-            margin-bottom: 10px;
-            font-weight: normal;
-            line-height: 1.2;
-        }
-
-        .master-list-items {
-            overflow-y: auto;
-            max-height: 500px;
-        }
-
-        .step-pill {
-            display: block;
-            width: 100%;
-            text-align: left;
-            padding: 8px 12px;
-            margin-bottom: 6px;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 0.85rem;
-            color: #4b5563;
-            word-wrap: break-word;
-        }
-
-        .step-pill:hover {
-            border-color: var(--accent-color);
-            background-color: #f0f7ff;
-            transform: translateX(3px);
-            color: var(--accent-color);
-        }
-
-        .selected-container {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            min-height: 100px;
-        }
-
-        .empty-state {
-            color: #9ca3af;
-            text-align: center;
-            margin-top: 50px;
-            font-style: italic;
-            font-size: 0.8rem;
-        }
-
-        .selected-card {
-            background: white;
-            border: 1px solid var(--border-color);
-            border-left: 4px solid var(--accent-color);
-            border-radius: 8px;
-            padding: 10px;
-            position: relative;
-            cursor: grab;
-        }
-
-        .selected-card:active { cursor: grabbing; }
-        .selected-card.dragging { opacity: 0.5; background-color: var(--drag-bg); border-style: dashed; }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 6px;
-            pointer-events: none;
-        }
-
-        .card-title {
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: #1f2937;
-            display: flex;
-            align-items: flex-start;
-            gap: 6px;
-            word-break: break-word;
-        }
-
-        .drag-handle { color: #9ca3af; font-size: 1rem; line-height: 1.2; flex-shrink: 0; }
-
-        .remove-btn {
-            background: none;
-            border: none;
-            color: var(--danger-color);
-            cursor: pointer;
-            padding: 2px 4px;
-            font-size: 0.75rem;
-            border-radius: 4px;
-            pointer-events: auto;
-        }
-
-        .remove-btn:hover { background: #fee2e2; }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            pointer-events: auto;
-        }
-
-        .input-group label {
-            font-size: 0.65rem;
-            color: #6b7280;
-            text-transform: uppercase;
-        }
-
-        .input-group input {
-            padding: 6px 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            width: 100%;
-            box-sizing: border-box;
-            outline: none;
-            user-select: text;
-        }
-
-        .input-group input:focus { border-color: var(--accent-color); }
+        .step-name { font-weight: bold; font-size: 13px; display: block; margin-bottom: 5px; }
+        .step-input { width: 100%; box-sizing: border-box; padding: 5px; border: 1px solid #ccc; font-size: 12px; }
+        .remove-btn { position: absolute; top: 5px; right: 5px; color: red; border: none; background: none; cursor: pointer; font-size: 11px; }
     </style>
 </head>
 <body>
 
-    <div class="widget-container">
-        <div class="column">
-            <h3>Possible Steps</h3>
-            <div class="helper-text">Click to add. You can select the same step multiple times.</div>
-            <div class="master-list-items" id="master-list"></div>
-        </div>
-
-        <div class="column">
-            <h3>Sequence <span class="badge" id="selected-count">0</span></h3>
-            <div class="helper-text">Drag to reorder</div>
-            <div class="selected-container" id="selected-container">
-                <div class="empty-state">Select steps to begin.</div>
-            </div>
-        </div>
+<div class="container">
+    <div class="col">
+        <h3>Possible Steps</h3>
+        <div id="master-list"></div>
     </div>
+    <div class="col">
+        <h3>Your Process</h3>
+        <div id="selected-list"></div>
+    </div>
+</div>
 
-    <script>
-        const stepDefinitions = [
-            "Project Planning", "Content Briefing", "Initial Drafting",
-            "Internal Review Cycle", "SME/Technical Review", "Final Copy Refinement",
-            "Translation Prep", "Language Services (LS)", "Translation Phase",
-            "Localization Review", "Linguistic Sign-off", "Quality Assurance (QA)",
-            "Design/DTP Phase", "Final Approval", "Publishing/Distribution"
-        ];
+<script>
+    const options = [
+        "Project Planning", "Content Briefing", "Initial Drafting", "Internal Review", 
+        "SME Review", "Translation Prep", "Language Services (LS)", "Translation", 
+        "Localization Review", "Linguistic Sign-off", "QA", "Final Approval", "Publishing"
+    ];
 
-        let selectedSteps = [];
-        let isReady = false;
+    let selectedSteps = [];
 
-        const masterList = document.getElementById('master-list');
-        const selectedContainer = document.getElementById('selected-container');
-        const selectedCount = document.getElementById('selected-count');
+    function addStep(name) {
+        selectedSteps.push({ name: name, owner: "" });
+        render();
+    }
 
-        function initUI() {
-            masterList.innerHTML = '';
-            stepDefinitions.forEach(step => {
-                const btn = document.createElement('button');
-                btn.className = 'step-pill';
-                btn.innerHTML = `<strong>+</strong> ${step}`;
-                btn.onclick = () => addStep(step);
-                masterList.appendChild(btn);
-            });
+    function removeStep(index) {
+        selectedSteps.splice(index, 1);
+        render();
+    }
 
-            selectedContainer.addEventListener('dragover', handleDragOver);
-            selectedContainer.addEventListener('drop', handleDrop);
-        }
+    function updateOwner(index, val) {
+        selectedSteps[index].owner = val;
+        sync(); 
+    }
 
-        function addStep(name) {
-            const newStep = {
-                id: 'id_' + Math.random().toString(36).substr(2, 9),
-                name: name,
-                responsible: ""
-            };
-            selectedSteps.push(newStep);
-            render();
-        }
+    function render() {
+        const list = document.getElementById('selected-list');
+        list.innerHTML = selectedSteps.length === 0 ? '<p style="color:gray; font-size:12px;">No steps added.</p>' : '';
+        
+        selectedSteps.forEach((s, i) => {
+            const div = document.createElement('div');
+            div.className = 'step-row';
+            div.innerHTML = `
+                <button class="remove-btn" onclick="removeStep(${i})">Remove</button>
+                <span class="step-name">${i + 1}. ${s.name}</span>
+                <input class="step-input" type="text" placeholder="Responsible person" value="${s.owner}" oninput="updateOwner(${i}, this.value)">
+            `;
+            list.appendChild(div);
+        });
+        sync();
+    }
 
-        function removeStep(id) {
-            selectedSteps = selectedSteps.filter(s => s.id !== id);
-            render();
-        }
-
-        function updateResponsible(id, value) {
-            const step = selectedSteps.find(s => s.id === id);
-            if (step) {
-                step.responsible = value;
-                syncWithJotform();
-            }
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            const draggingElement = document.querySelector('.dragging');
-            if (!draggingElement) return;
-            const afterElement = getDragAfterElement(selectedContainer, e.clientY);
-            if (afterElement == null) {
-                selectedContainer.appendChild(draggingElement);
-            } else {
-                selectedContainer.insertBefore(draggingElement, afterElement);
-            }
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            const newOrderIds = [...selectedContainer.querySelectorAll('.selected-card')].map(el => el.dataset.id);
-            selectedSteps = newOrderIds.map(id => selectedSteps.find(step => step.id === id));
-            render();
-        }
-
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.selected-card:not(.dragging)')];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
-
-        function render() {
-            selectedCount.innerText = selectedSteps.length;
-            if (selectedSteps.length === 0) {
-                selectedContainer.innerHTML = '<div class="empty-state">Select steps to begin.</div>';
-            } else {
-                selectedContainer.innerHTML = '';
-                selectedSteps.forEach((step, index) => {
-                    const card = document.createElement('div');
-                    card.className = 'selected-card';
-                    card.draggable = true;
-                    card.dataset.id = step.id;
-                    
-                    card.ondragstart = (e) => {
-                        e.target.classList.add('dragging');
-                        e.dataTransfer.setData('text/plain', step.id);
-                    };
-                    card.ondragend = (e) => e.target.classList.remove('dragging');
-
-                    card.innerHTML = `
-                        <div class="card-header">
-                            <span class="card-title"><span class="drag-handle">⋮⋮</span> ${index + 1}. ${step.name}</span>
-                            <button class="remove-btn" onclick="removeStep('${step.id}')">✕</button>
-                        </div>
-                        <div class="input-group">
-                            <label>Owner</label>
-                            <input type="text" placeholder="Name" value="${step.responsible}" 
-                                   oninput="updateResponsible('${step.id}', this.value)"
-                                   onmousedown="event.stopPropagation()">
-                        </div>
-                    `;
-                    selectedContainer.appendChild(card);
-                });
-            }
-            syncWithJotform();
-        }
-
-        function getFormattedData() {
-            const data = {
-                totalSteps: selectedSteps.length,
-                steps: selectedSteps.map(s => ({ step: s.name, owner: s.responsible }))
-            };
-            return JSON.stringify(data);
-        }
-
-        function syncWithJotform() {
-            if (isReady && typeof JFCustomWidget !== 'undefined') {
-                const value = getFormattedData();
-                // Send data using the required 'value' key
-                JFCustomWidget.sendData({ 
-                    value: value,
-                    valid: selectedSteps.length > 0 // Help Jotform realize the field is "filled"
-                });
-                console.log("Jotform: Data Synced", value);
-            }
-        }
-
-        initUI();
-
-        // SDK Integration
+    function sync() {
         if (typeof JFCustomWidget !== 'undefined') {
-            JFCustomWidget.subscribe("ready", function(data) {
-                isReady = true;
-                console.log("Jotform: Widget Ready", data);
-                
-                // Initialize widget with existing value if available (essential for multi-page/edit)
-                if (data && data.value) {
-                    try {
-                        const saved = JSON.parse(data.value);
-                        if (saved && Array.isArray(saved.steps)) {
-                            selectedSteps = saved.steps.map(s => ({
-                                id: 'id_' + Math.random().toString(36).substr(2, 9),
-                                name: s.step,
-                                responsible: s.owner || ""
-                            }));
-                            render();
-                        }
-                    } catch (e) {
-                        console.warn("Jotform: Failed to parse initial value.", e);
-                    }
-                }
-
-                JFCustomWidget.requestFrameResize({ 
-                    height: document.body.offsetHeight + 40
-                });
-
-                setInterval(() => {
-                    JFCustomWidget.requestFrameResize({ 
-                        height: document.body.offsetHeight + 40
-                    });
-                }, 1000);
-            });
-
-            // Capture the submit event to send final state
-            JFCustomWidget.subscribe("submit", function() {
-                console.log("Jotform: Submit event received");
-                const payload = {
-                    valid: selectedSteps.length > 0,
-                    value: getFormattedData()
-                };
-                JFCustomWidget.sendSubmit(payload);
-            });
+            const dataString = JSON.stringify(selectedSteps);
+            // sendData tells Jotform the current value of the field immediately
+            JFCustomWidget.sendData({ value: dataString });
         }
-    </script>
+    }
+
+    // Build the master list buttons
+    const mList = document.getElementById('master-list');
+    options.forEach(opt => {
+        const b = document.createElement('button');
+        b.className = 'add-btn';
+        b.innerText = "+ " + opt;
+        b.onclick = () => addStep(opt);
+        mList.appendChild(b);
+    });
+
+    if (typeof JFCustomWidget !== 'undefined') {
+        JFCustomWidget.subscribe("ready", function(data) {
+            // Restore data if it exists (for edits or multi-page forms)
+            if (data && data.value) {
+                try {
+                    const parsed = JSON.parse(data.value);
+                    if (Array.isArray(parsed)) {
+                        selectedSteps = parsed;
+                        render();
+                    }
+                } catch (e) { console.error("Parse error", e); }
+            }
+
+            // Ensure the iframe height matches the content
+            setInterval(() => {
+                JFCustomWidget.requestFrameResize({ height: document.body.offsetHeight + 40 });
+            }, 1000);
+        });
+
+        JFCustomWidget.subscribe("submit", function() {
+            // Final confirmation of data on form submission
+            const dataString = JSON.stringify(selectedSteps);
+            const result = {
+                valid: true,
+                value: dataString
+            };
+            JFCustomWidget.sendSubmit(result);
+        });
+    }
+</script>
+
 </body>
 </html>
