@@ -395,21 +395,44 @@
             syncWithJotform();
         }
 
-        function syncWithJotform() {
-            const payload = {
+        function getPayload() {
+            return {
                 totalSteps: selectedSteps.length,
                 steps: selectedSteps.map(s => ({ step: s.name, owner: s.responsible }))
             };
-            
+        }
+
+        function syncWithJotform() {
             if (typeof JOTFORM !== 'undefined') {
+                const payload = getPayload();
                 JOTFORM.sendData({ value: JSON.stringify(payload) });
             }
         }
 
         init();
 
+        // Jotform Lifecycle Implementation
         if (typeof JOTFORM !== 'undefined') {
-            JOTFORM.subscribe("ready", function() {
+            // 1. Ready Event: Handles initialization and data restoration
+            JOTFORM.subscribe("ready", function(msg) {
+                // If there's existing data, restore it
+                if (msg && msg.value) {
+                    try {
+                        const savedData = JSON.parse(msg.value);
+                        if (savedData && Array.isArray(savedData.steps)) {
+                            selectedSteps = savedData.steps.map(s => ({
+                                id: 'step-' + Date.now() + Math.random().toString(36).substr(2, 5),
+                                name: s.step,
+                                responsible: s.owner || ""
+                            }));
+                            render();
+                        }
+                    } catch (e) {
+                        console.error("Error restoring saved Jotform data:", e);
+                    }
+                }
+
+                // Auto-resize handler
                 setInterval(() => {
                     if (typeof JOTFORM !== 'undefined') {
                         JOTFORM.requestFrameResize({ 
@@ -417,6 +440,12 @@
                         });
                     }
                 }, 500);
+            });
+
+            // 2. Submit Event: Explicitly send data when form is submitted
+            JOTFORM.subscribe("submit", function() {
+                const payload = getPayload();
+                JOTFORM.sendSubmit({ value: JSON.stringify(payload) });
             });
         }
     </script>
