@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Workflow Builder</title>
-  <script src="//js.jotform.com/JotFormCustomWidget.min.js"></script>
+
+  <!-- Jotform API -->
+  <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
 
   <style>
     body {
@@ -29,38 +31,57 @@
       padding: 10px;
       min-height: 200px;
       border-radius: 6px;
+      background: #fafafa;
     }
 
     .item {
       padding: 8px;
       margin: 5px 0;
       background: #f4f4f4;
-      cursor: grab;
       border-radius: 4px;
+      cursor: pointer;
     }
 
     .item:hover {
       background: #e0e0e0;
     }
 
-    .selected {
+    .workflow-item {
       background: #d0ebff;
+    }
+
+    .btn {
+      margin-top: 10px;
+      padding: 6px 10px;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: #0056b3;
     }
   </style>
 </head>
 
 <body>
+
   <h3>Custom Workflow Builder</h3>
 
   <div class="container">
+    <!-- Available Steps -->
     <div class="column">
       <h4>Available Steps</h4>
       <div id="available" class="box"></div>
     </div>
 
+    <!-- Workflow -->
     <div class="column">
       <h4>Your Workflow</h4>
       <div id="workflow" class="box"></div>
+      <button class="btn" onclick="clearWorkflow()">Clear Workflow</button>
     </div>
   </div>
 
@@ -81,83 +102,92 @@
       "Publishing"
     ];
 
-    const available = document.getElementById("available");
-    const workflow = document.getElementById("workflow");
+    let workflowContainer;
 
-    // Populate available steps
-    steps.forEach(step => {
-      const el = document.createElement("div");
-      el.className = "item";
-      el.innerText = step;
-
-      el.onclick = () => addToWorkflow(step);
-
-      available.appendChild(el);
-    });
-
+    // Add step to workflow
     function addToWorkflow(step) {
       const el = document.createElement("div");
-      el.className = "item";
+      el.className = "item workflow-item";
       el.innerText = step;
 
       // Remove on click
-      el.onclick = () => el.remove();
+      el.onclick = () => {
+        el.remove();
+        resizeWidget();
+      };
 
-      // Enable drag
-      el.draggable = true;
-
-      el.addEventListener("dragstart", dragStart);
-      el.addEventListener("dragover", dragOver);
-      el.addEventListener("drop", drop);
-
-      workflow.appendChild(el);
-
+      workflowContainer.appendChild(el);
       resizeWidget();
     }
 
-    // Drag logic
-    let dragged;
-
-    function dragStart(e) {
-      dragged = e.target;
+    // Clear workflow
+    function clearWorkflow() {
+      workflowContainer.innerHTML = "";
+      resizeWidget();
     }
 
-    function dragOver(e) {
-      e.preventDefault();
-    }
-
-    function drop(e) {
-      e.preventDefault();
-      if (e.target.classList.contains("item")) {
-        workflow.insertBefore(dragged, e.target);
+    // Resize iframe
+    function resizeWidget() {
+      if (window.JFCustomWidget) {
+        JFCustomWidget.requestFrameResize({
+          height: document.body.scrollHeight
+        });
       }
     }
 
-    function getWorkflowData() {
-      const items = workflow.querySelectorAll(".item");
-      const result = [];
-      items.forEach(el => result.push(el.innerText));
-      return result;
-    }
+    // INIT JOTFORM
+    JFCustomWidget.subscribe("ready", function (data) {
 
-    function resizeWidget() {
-      JFCustomWidget.requestFrameResize({
-        height: document.body.scrollHeight
+      const availableContainer = document.getElementById("available");
+      workflowContainer = document.getElementById("workflow");
+
+      // Populate available steps
+      steps.forEach(step => {
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerText = step;
+
+        el.onclick = () => addToWorkflow(step);
+
+        availableContainer.appendChild(el);
       });
-    }
 
-    // Jotform integration
-    JFCustomWidget.subscribe("ready", function () {
+      // 🔥 LOAD SAVED DATA (PERSISTENCE FIX)
+      if (data && data.value) {
+        try {
+          const savedSteps = JSON.parse(data.value);
+
+          if (Array.isArray(savedSteps)) {
+            savedSteps.forEach(step => {
+              addToWorkflow(step);
+            });
+          }
+
+        } catch (e) {
+          console.error("Error loading saved workflow:", e);
+        }
+      }
+
+      // Ensure visible height
+      JFCustomWidget.requestFrameResize({ height: 500 });
+
       resizeWidget();
 
+      // Submit handler
       JFCustomWidget.subscribe("submit", function () {
-        const data = {
+
+        const items = workflowContainer.querySelectorAll(".workflow-item");
+        const result = Array.from(items).map(el => el.innerText);
+
+        JFCustomWidget.sendSubmit({
           valid: true,
-          value: JSON.stringify(getWorkflowData())
-        };
-        JFCustomWidget.sendSubmit(data);
+          value: JSON.stringify(result)
+        });
+
       });
+
     });
   </script>
+
 </body>
 </html>
